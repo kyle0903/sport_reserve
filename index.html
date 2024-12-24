@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>快速預約運動中心場地</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <form class="form" id="reservationForm">
+        <div class="title">歡迎<br /><span>快速預約運動中心場地</span></div>
+        <input
+          class="input"
+          name="session_id"
+          placeholder="session_id"
+          type="text"
+          required
+        />
+        <select class="input" name="place" required>
+          <option value="SC">三重</option>
+          <option value="BQ">板橋</option>
+        </select>
+        <select class="input" name="date" required></select>
+        <script>
+          // 取得 select 元素
+          const dateSelect = document.querySelector('select[name="date"]');
+
+          // 生成未來七天的日期選項
+          for (let i = 0; i < 8; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+
+            // 格式化日期為 YYYY-MM-DD
+            const formattedDate = date.toISOString().split("T")[0];
+
+            // 創建新的 option 元素
+            const option = document.createElement("option");
+            option.value = formattedDate;
+            option.textContent = formattedDate;
+
+            // 將 option 加入 select 中
+            dateSelect.appendChild(option);
+          }
+        </script>
+        <select class="input" name="QTime" id="QTime">
+          <option value="6">6:00</option>
+          <option value="7">7:00</option>
+          <option value="8">8:00</option>
+          <option value="9">9:00</option>
+          <option value="10">10:00</option>
+          <option value="11">11:00</option>
+          <option value="12">12:00</option>
+          <option value="13">13:00</option>
+          <option value="14">14:00</option>
+          <option value="15">15:00</option>
+          <option value="16">16:00</option>
+          <option value="17">17:00</option>
+          <option value="18">18:00</option>
+          <option value="19">19:00</option>
+          <option value="20">20:00</option>
+          <option value="21">21:00</option>
+        </select>
+        <select class="input" name="hours" required>
+          <option value="1">1小時</option>
+          <option value="2">2小時</option>
+        </select>
+        <button type="submit" class="button-confirm" id="submitButton">
+          預約囉 →
+        </button>
+      </form>
+
+      <script>
+        document
+          .getElementById("reservationForm")
+          .addEventListener("submit", async function (e) {
+            e.preventDefault(); // 防止表單的預設提交行為
+
+            const formData = new FormData(this);
+            try {
+              const response = await fetch(
+                "http://localhost:8081/api/reserve_api",
+                {
+                  method: "POST",
+                  body: formData,
+                }
+              );
+
+              const result = await response.json();
+              // 處理回傳結果
+              // 判斷是字串還是陣列
+              if (typeof result.message === "string") {
+                alert(result.message);
+                return;
+              }
+              for (let i = 0; i < result.message.length; i++) {
+                const a = document.createElement("a");
+                a.href = result.message[i];
+                a.target = "_blank";
+                document.body.appendChild(a);
+                window.open(result.message[i], "_blank");
+              }
+              submitButton.disabled = true;
+              submitButton.textContent = "預約成功";
+              alert("預約成功");
+            } catch (error) {
+              console.error("Error:", error);
+              alert(error.message);
+            }
+          });
+      </script>
+    </div>
+  </body>
+</html>
