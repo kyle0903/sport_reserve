@@ -28,7 +28,16 @@ def reserve_api():
 
         arr_result = []
         for qpid in court_mapping:
-            court = court_mapping[qpid][0] if data["place"] == "SC" else court_mapping[qpid][1]
+            if data["place"] == "SC":
+                court = court_mapping[qpid][0]
+                pre_url = "https://fe.xuanen.com.tw/fe01.aspx?"
+                replace_url = pre_url.split("fe01")[0]
+            elif data["place"] == "BQ":
+                court = court_mapping[qpid][1]
+                pre_url = "https://www.cjcf.com.tw/CG01.aspx?"
+                replace_url = pre_url.split("CG01")[0]
+            else:
+                return makeJsonResponse(400, "place must be SC or BQ")
             
             # 嘗試預約第一個時段
             result = {
@@ -36,10 +45,10 @@ def reserve_api():
                 "QTime": int(data["QTime"]),
                 "date": data["date"],
                 "place": data["place"],
-                "session_id": data["session_id"]
+                "session_id": data["session_id"],
             }
 
-            url, err = get_url(result)
+            url, err = get_url(result, pre_url, replace_url)
             if err is not None and err != "預約失敗":
                 return makeJsonResponse(400, err)
             elif err is None:
@@ -53,7 +62,7 @@ def reserve_api():
                     break
                 # 預約第二個時段
                 result["QTime"] += 1
-                url2, err2 = get_url(result)
+                url2, err2 = get_url(result, pre_url, replace_url)
                 if err2 is None:
                     arr_result.append({
                         "場地": court,
@@ -68,19 +77,14 @@ def reserve_api():
     except Exception as e:
         return makeJsonResponse(400, str(e))
 
-def get_url(result):
+def get_url(result, pre_url, replace_url):
+
     QPid = result["QPid"]
     QTime = result["QTime"]
     date = result["date"]
     session_id = result["session_id"]
     place = result["place"]
 
-    if place == "SC":
-        pre_url = f"https://fe.xuanen.com.tw/fe01.aspx?"
-    elif place == "BQ":
-        pre_url = f"https://www.cjcf.com.tw/CG01.aspx?"
-    else:
-        return None, "場地錯誤"
     url = f"{pre_url}module=net_booking&files=booking_place&StepFlag=25&QPid={QPid}&QTime={QTime}&PT=1&D={date}"
     # url = f"{pre_url}module=net_booking&files=booking_place&StepFlag=2&PT=1&D=2024/12/25&D2=2"
     headers = {
@@ -98,9 +102,9 @@ def get_url(result):
             redirect_url = match.group(1)
             if "&X=1" in redirect_url:
                 if place == "SC":
-                    redirect_url = redirect_url.replace("../../../", "https://fe.xuanen.com.tw/")
+                    redirect_url = redirect_url.replace("../../../", replace_url)
                 else:
-                    redirect_url = redirect_url.replace("../../../", "https://www.cjcf.com.tw/")
+                    redirect_url = redirect_url.replace("../../../", replace_url)
                 print(redirect_url)
                 return redirect_url, None
             elif "&X=2":
