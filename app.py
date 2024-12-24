@@ -55,7 +55,6 @@ def reserve_api():
             elif err is None:
                 arr_result.append({
                     "場地": court,
-                    "時段": f"{data['QTime']}:00~{data['QTime']+1}:00",
                     "url": url
                 })
                 ticket_number += 1
@@ -68,7 +67,6 @@ def reserve_api():
                 if err2 is None:
                     arr_result.append({
                         "場地": court,
-                        "時段": f"{data['QTime']+1}:00~{data['QTime']+2}:00",
                         "url": url2
                     })
                     break

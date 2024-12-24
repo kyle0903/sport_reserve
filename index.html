@@ -95,14 +95,14 @@
               }
               for (let i = 0; i < result.message.length; i++) {
                 const a = document.createElement("a");
-                a.href = result.message[i];
+                a.href = result.message[i].url;
                 a.target = "_blank";
                 document.body.appendChild(a);
-                window.open(result.message[i], "_blank");
+                window.open(result.message[i].url, "_blank");
               }
               submitButton.disabled = true;
               submitButton.textContent = "預約成功";
-              alert("預約成功");
+              alert("成功預約，請前往預約網站");
             } catch (error) {
               console.error("Error:", error);
               alert(error.message);
