@@ -27,6 +27,7 @@ def reserve_api():
             return makeJsonResponse(400, "hours must be less than 2")
 
         arr_result = []
+        is_second_time = False
         for qpid in court_mapping:
             if data["place"] == "SC":
                 court = court_mapping[qpid][0]
@@ -38,8 +39,6 @@ def reserve_api():
                 replace_url = pre_url.split("CG01")[0]
             else:
                 return makeJsonResponse(400, "place must be SC or BQ")
-            
-            # 嘗試預約第一個時段
             result = {
                 "QPid": qpid,
                 "QTime": int(data["QTime"]),
@@ -47,6 +46,8 @@ def reserve_api():
                 "place": data["place"],
                 "session_id": data["session_id"],
             }
+            if is_second_time:
+                result["QTime"] += 1
 
             url, err = get_url(result, pre_url, replace_url)
             if err is not None and err != "預約失敗":
@@ -60,7 +61,8 @@ def reserve_api():
                 ticket_number += 1
                 if ticket_number == hours:
                     break
-                # 預約第二個時段
+                is_second_time = True
+                # 預約同個場地第二個時段
                 result["QTime"] += 1
                 url2, err2 = get_url(result, pre_url, replace_url)
                 if err2 is None:
@@ -73,7 +75,7 @@ def reserve_api():
                 elif err2 != "預約失敗":
                     return makeJsonResponse(400, err2)
 
-        return makeJsonResponse(200, "該時段5樓已經沒有場地" if not arr_result else arr_result)
+        return makeJsonResponse(200, "該時段已經沒有場地" if not arr_result else arr_result)
     except Exception as e:
         return makeJsonResponse(400, str(e))
 
