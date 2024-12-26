@@ -3,9 +3,41 @@ import json
 import requests
 import re
 from flask_cors import CORS
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
 
+service = Service(executable_path=ChromeDriverManager().install())
 app = Flask(__name__)
 CORS(app)
+
+@app.route("/api/get_session_id", methods=["GET"])
+def get_session_id():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")  
+    options.add_argument("--disable-gpu") 
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-notifications")
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    driver = webdriver.Chrome(service=service, options=options)
+    # set the target URL
+    url = 'https://fe.xuanen.com.tw/fe01.aspx?module=login_page&files=login&PT=1'
+    # 開始使用
+    driver.get(url)
+    driver.switch_to.alert.accept()
+    confirm = driver.find_element(By.CSS_SELECTOR, ".swal2-styled.swal2-confirm")
+    confirm.click()
+    time.sleep(3)
+    # screenshot
+    driver.save_screenshot("screenshot.png")
+
+    return makeJsonResponse(200, "OK")
+
 
 @app.route("/api/reserve_api", methods=["POST"])
 def reserve_api():
@@ -54,26 +86,30 @@ def reserve_api():
                 return makeJsonResponse(400, err)
             elif err is None:
                 arr_result.append({
-                    "場地": court,
+                    "date": data["date"],
+                    "court": court,
+                    "QTime": int(result["QTime"]),
                     "url": url
                 })
                 ticket_number += 1
                 if ticket_number == hours:
                     break
                 is_second_time = True
-                # 預約同個場地第二個時段
+                # 預約��個場地第二個時段
                 result["QTime"] += 1
                 url2, err2 = get_url(result, pre_url, replace_url)
                 if err2 is None:
                     arr_result.append({
-                        "場地": court,
+                        "date": data["date"],
+                        "court": court,
+                        "QTime": int(result["QTime"]),
                         "url": url2
                     })
                     break
                 elif err2 != "預約失敗":
                     return makeJsonResponse(400, err2)
 
-        return makeJsonResponse(200, "該時段已經沒有場地" if not arr_result else arr_result)
+        return makeJsonResponse(200, "該時段��經沒有場地" if not arr_result else arr_result)
     except Exception as e:
         return makeJsonResponse(400, str(e))
 

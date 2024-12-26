@@ -6,8 +6,8 @@
     <title>快速預約運動中心場地</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
-    <div class="container">
+  <body style="background-color: rgb(230, 244, 249)">
+    <div class="container" id="container">
       <form class="form" id="reservationForm">
         <div class="title">歡迎<br /><span>快速預約運動中心場地</span></div>
         <input
@@ -26,8 +26,8 @@
           // 取得 select 元素
           const dateSelect = document.querySelector('select[name="date"]');
 
-          // 生成未來七天的日期選項
-          for (let i = 0; i < 8; i++) {
+          // 生成未來7天日期選項(因為要搶第8天的場地，所以選項要到第8天)
+          for (let i = 8; i > 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() + i);
 
@@ -69,8 +69,14 @@
           預約囉 →
         </button>
       </form>
-
+      <div class="loader" id="loading"></div>
+      <div class="form" id="formResult" style="width: 350px">
+        <div class="title">預約結果<br /><br /><span id="resultContent"></span></div>
+      </div>
+      </div>
       <script>
+        loading.style.display = "none";
+        formResult.style.display = "none";
         document
           .getElementById("reservationForm")
           .addEventListener("submit", async function (e) {
@@ -78,6 +84,8 @@
 
             const formData = new FormData(this);
             try {
+              loading.style.display = "block";
+              reservationForm.style.display = "none";
               const response = await fetch(
                 "http://localhost:8081/api/reserve_api",
                 {
@@ -91,24 +99,42 @@
               // 判斷是字串還是陣列
               if (typeof result.message === "string") {
                 alert(result.message);
+                loading.style.display = "none";
+                reservationForm.style.display = "flex";
                 return;
               }
-              for (let i = 0; i < result.message.length; i++) {
-                const a = document.createElement("a");
-                a.href = result.message[i].url;
-                a.target = "_blank";
-                document.body.appendChild(a);
-                window.open(result.message[i].url, "_blank");
-              }
-              submitButton.disabled = true;
-              submitButton.textContent = "預約成功";
-              alert("成功預約，請前往預約網站");
+              let resultString = "";
+              const openPromises = result.message.map((item) => {
+                return new Promise((resolve) => {
+                  window.open(item.url, "_blank");
+                  resultString +=
+                    "日期:" +
+                    item.date +
+                    " 時段:" +
+                    (item.QTime) +
+                    ":00~" +
+                    (item.QTime + 1) +
+                    ":00 場地:" +
+                    item.court +
+                    "<br>";
+                  // 給一個小延遲確保視窗有時間開啟
+                  setTimeout(resolve, 500);
+                });
+              });
+
+              await Promise.all(openPromises);
+              loading.style.display = "none";
+              formResult.style.display = "flex";
+              resultContent.innerHTML = resultString;
             } catch (error) {
               console.error("Error:", error);
               alert(error.message);
+              loading.style.display = "none";
+              reservationForm.style.display = "flex";
             }
           });
       </script>
+
     </div>
   </body>
 </html>
