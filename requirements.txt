@@ -2,6 +2,3 @@ flask == 2.0.3
 requests == 2.32.3
 Werkzeug==2.0.3
 Flask-Cors==3.0.10
-selenium==4.27.1
-webdriver-manager==4.0.2
-seleniumbase==4.33.12
