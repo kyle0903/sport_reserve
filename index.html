@@ -104,31 +104,28 @@
                 return;
               }
               let resultString = "";
-              const openPromises = result.message.map((item) => {
-                return new Promise((resolve) => {
-                  // window.open(item.url, "_blank");
-                  resultString +=
-                    "日期:" +
-                    item.date +
-                    " 時段:" +
-                    (item.QTime) +
-                    ":00~" +
-                    (item.QTime + 1) +
-                    ":00 場地:" +
-                    item.court +
-                    "<br>";
-                });
+              result.message.forEach((item) => {
+                resultString +=
+                  "日期:" +
+                  item.date +
+                  " 時段:" +
+                  (item.QTime) +
+                  ":00~" +
+                  (item.QTime + 1) +
+                  ":00 場地:" +
+                  item.court +
+                  "<br>";
               });
 
-              await Promise.all(openPromises);
               loading.style.display = "none";
               formResult.style.display = "flex";
               resultContent.innerHTML = resultString;
-              // resultContent.styl = "green";
-              // 插入連結
+              
+              // 插入付款連結
               const link = document.createElement("a");
               link.href = "https://fe.xuanen.com.tw/fe01.aspx?Module=member&files=orderx_mt";
               link.textContent = "前往訂單付費--→";
+              link.target = "_blank"; // 付款連結在新分頁開啟
               resultContent.appendChild(link);
             } catch (error) {
               console.error("Error:", error);

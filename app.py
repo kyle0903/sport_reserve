@@ -8,9 +8,18 @@ app = Flask(__name__)
 CORS(app)
 
 
-@app.route("/api/test", methods=["GET"])
+@app.route("/api/test", methods=["POST"])
 def test():
-    return makeJsonResponse(200, "test")
+    post_data = request.form.to_dict()
+    print(post_data)
+    data = [{
+        "date": "2025/02/16",
+        "court": "場地5-1",
+        "QTime": 1, 
+        "url": "https://www.cjcf.com.tw/CG01.aspx?module=net_booking&files=booking_place&StepFlag=25&QPid=83&QTime=1&PT=1&D=2025/02/16"
+    }]
+    
+    return makeJsonResponse(200, data)
 
 
 @app.route("/api/reserve_api", methods=["POST"])
