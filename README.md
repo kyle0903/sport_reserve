@@ -13,8 +13,8 @@
 ## 系統功能
 
 - 預訂羽球場地
-    - 顯示可預定之日期
-    - 選擇場館、日期、時間與場地
+  - 顯示可預定之日期
+  - 選擇場館、日期、時間與場地
 
 ## 安裝與使用
 
@@ -26,24 +26,22 @@
 ### 2. 安裝步驟
 
 1. Clone 專案至本地端
-    
-    ```bash
-    git clone https://github.com/kyle0903/sport_reserve.git
-    cd sport_reserve
-    
-    ```
-    
-2. 建立專案Docker映像檔：
-    
-    ```docker
-    docker build . -t="sport_reserve:dev" -f Dockerfile.dev
-    ```
-    
+
+   ```bash
+   git clone https://github.com/kyle0903/sport_reserve.git
+   cd sport_reserve
+
+   ```
+
+2. 建立專案 Docker 映像檔：
+
+   ```docker
+   docker build . -t="sport_reserve:dev" -f Dockerfile.dev
+   ```
 
 ### 3. 伺服器啟動
 
-- 執行專案Docker Container ( 後端 API`http://localhost:8081`)：
-    
-    ```docker
-    docker run -d -v D:\sport_reserve:/app -p 8081:8081 -e PYTHONUNBUFFERED=1 "sport_reserve:dev"
-    ```
+- 執行專案 Docker Container ( 後端 API`http://localhost:8081`)：
+  ```docker
+  docker run -d -v [sport_reserve path]:/app -p 8081:8081 -e PYTHONUNBUFFERED=1 "sport_reserve:dev"
+  ```

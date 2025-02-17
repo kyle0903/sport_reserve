@@ -3,7 +3,6 @@ import json
 import requests
 import re
 from flask_cors import CORS
-import time
 
 app = Flask(__name__)
 CORS(app)
@@ -70,7 +69,7 @@ def reserve_api():
                 if ticket_number == hours:
                     break
                 is_second_time = True
-                # 預約��個場地第二個時段
+                # 預約場地第二個時段
                 result["QTime"] += 1
                 url2, err2 = get_url(result, pre_url, replace_url)
                 if err2 is None:
