@@ -16,6 +16,25 @@ export class LoginError extends Error {
   }
 }
 
+// 用本地時間格式化，避免 toISOString() 在台灣早上 8 點前少一天；格式與網站相同 YYYY/MM/DD
+export function formatDate(d) {
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 下一個 00:00（新的一天開放的時間） */
+export function nextOpenAt(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(24, 0, 0, 0);
+  return d;
+}
+
+/** 下一個 00:00 會開放的日期 */
+export function nextOpenDate(place, now = new Date()) {
+  const d = nextOpenAt(now);
+  d.setDate(d.getDate() + ADVANCE_DAYS[place]);
+  return d;
+}
+
 export const loginUrl = (place) => `${SITES[place].base}?module=login_page&files=login&PT=1`;
 export const payUrl = (place) => `${SITES[place].base}?Module=member&files=orderx_mt`;
 const listUrl = (place, date, d2) =>
@@ -88,12 +107,79 @@ export async function book(place, date, qtimes, slots, fetchImpl = fetch) {
   return { booked, error: null };
 }
 
-/** 查空位並預約；成功回傳已預約清單，失敗丟出錯誤 */
-export async function reserve(place, date, qtime, hours, fetchImpl = fetch) {
-  const qtimes = Array.from({ length: hours }, (_, i) => qtime + i);
-  const slots = await getAvailable(place, date, qtimes, fetchImpl);
-  if (!slots) throw new Error(`${date} 尚未開放預約`);
+const toQtimes = (qtime, hours) => Array.from({ length: hours }, (_, i) => qtime + i);
+
+async function bookOrThrow(place, date, qtimes, slots, fetchImpl) {
   const { booked, error } = await book(place, date, qtimes, slots, fetchImpl);
   if (!booked.length) throw new Error(error || "該時段已經沒有場地");
   return booked;
+}
+
+/** 查空位並預約；成功回傳已預約清單，失敗丟出錯誤 */
+export async function reserve(place, date, qtime, hours, fetchImpl = fetch) {
+  const qtimes = toQtimes(qtime, hours);
+  const slots = await getAvailable(place, date, qtimes, fetchImpl);
+  if (!slots) throw new Error(`${date} 尚未開放預約`);
+  return bookOrThrow(place, date, qtimes, slots, fetchImpl);
+}
+
+function abortableSleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    }, { once: true });
+  });
+}
+
+const KEEPALIVE_MS = 10 * 60 * 1000;
+
+/**
+ * 等到下一個 00:00，預約新開放那天的場地。
+ * 送出時與等待期間每 10 分鐘確認登入（同時保持登入不閒置逾期），開放前 10 秒再確認一次；
+ * 開放後若頁面還沒更新，每 0.5 秒重試，最多 20 秒。
+ * now / sleep 可替換，方便測試。
+ */
+export async function reserveAtOpen(place, qtime, hours, { signal, fetchImpl = fetch, now = () => new Date(), sleep = abortableSleep } = {}) {
+  const openAt = nextOpenAt(now());
+  const date = formatDate(nextOpenDate(place, now()));
+  // 分段睡，避免單次長時間計時誤差
+  const sleepUntil = async (t) => {
+    while (now() < t) await sleep(Math.min(t - now(), 30000), signal);
+  };
+  const confirmLogin = () => checkLogin(place, formatDate(now()), fetchImpl);
+
+  await confirmLogin();
+  const finalCheckAt = +openAt - 10000;
+  let nextCheckAt = +now() + KEEPALIVE_MS;
+  while (+now() < finalCheckAt) {
+    await sleepUntil(new Date(Math.min(nextCheckAt, finalCheckAt)));
+    if (+now() >= finalCheckAt) break;
+    try {
+      await confirmLogin();
+    } catch (e) {
+      // 登出就提早停止；網路暫時錯誤則略過，等下一次確認
+      if (e instanceof LoginError) throw e;
+    }
+    nextCheckAt = +now() + KEEPALIVE_MS;
+  }
+  await confirmLogin();
+
+  await sleepUntil(openAt);
+  const qtimes = toQtimes(qtime, hours);
+  const deadline = +openAt + 20000;
+  let slots = null;
+  while (true) {
+    try {
+      slots = await getAvailable(place, date, qtimes, fetchImpl);
+    } catch (e) {
+      if (!(e instanceof LoginError)) throw e;
+    }
+    if (slots || +now() >= deadline) break;
+    await sleep(500, signal);
+  }
+  if (!slots) throw new Error(`00:00 後 20 秒內 ${date} 仍未開放`);
+  return bookOrThrow(place, date, qtimes, slots, fetchImpl);
 }

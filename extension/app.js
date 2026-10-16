@@ -1,4 +1,7 @@
-import { SITES, ADVANCE_DAYS, LoginError, loginUrl, payUrl, checkLogin, reserve } from "./reserve.js";
+import {
+  SITES, ADVANCE_DAYS, LoginError, loginUrl, payUrl, checkLogin, reserve, reserveAtOpen,
+  formatDate, nextOpenAt, nextOpenDate,
+} from "./reserve.js";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const PERIODS = [
@@ -15,6 +18,9 @@ const resultContent = document.getElementById("resultContent");
 const loginStatus = document.getElementById("loginStatus");
 const loginText = document.getElementById("loginText");
 const loginLink = document.getElementById("loginLink");
+const scheduleToggle = document.getElementById("scheduleToggle");
+const waiting = document.getElementById("waiting");
+const statusText = document.getElementById("statusText");
 
 function radio(name, value, html, checked, className) {
   const label = document.createElement("label");
@@ -23,20 +29,16 @@ function radio(name, value, html, checked, className) {
   return label;
 }
 
-// 用本地時間格式化，避免 toISOString() 在台灣早上 8 點前少一天；格式與網站相同 YYYY/MM/DD
-function formatDate(d) {
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function formatDay(d) {
   return `${d.getMonth() + 1}/${d.getDate()} 週${WEEKDAYS[d.getDay()]}`;
 }
 
-// 依場館產生可預約日期，預設選最後一天
-let renderedDays = null;
+// 依場館產生可預約日期，預設選最後一天；面板開著跨過午夜時會重新產生
+let renderedKey = null;
 function renderDates(days) {
-  if (days === renderedDays) return;
-  renderedDays = days;
+  const key = `${days}-${formatDate(new Date())}`;
+  if (key === renderedKey) return;
+  renderedKey = key;
   dateChips.innerHTML = "";
   dateChips.style.setProperty("--n", days + 1);
   for (let i = 0; i <= days; i++) {
@@ -76,12 +78,20 @@ try {
   });
 } catch (e) {}
 
-const currentPlace = () => new FormData(form).get("place");
+// 不用 FormData：預約中選項會被停用，FormData 會略過停用的欄位
+const currentPlace = () => form.querySelector('input[name="place"]:checked').value;
 
-// 依目前選擇更新：日期範圍、2 小時的第二格標示、摘要列
+// 依目前選擇更新：日期範圍、排程說明、2 小時的第二格標示、摘要列
 function refresh() {
   const data = new FormData(form);
-  renderDates(ADVANCE_DAYS[data.get("place")]);
+  const place = data.get("place");
+  renderDates(ADVANCE_DAYS[place]);
+
+  const scheduled = scheduleToggle.checked;
+  dateChips.hidden = scheduled;
+  document.getElementById("scheduleHint").textContent = scheduled
+    ? `請於 00:00 前送出，將預約 ${formatDay(nextOpenDate(place))}`
+    : "開放瞬間自動送出，送出後請保持面板開著";
 
   const hours = Number(data.get("hours"));
   // 2 小時不能從 21:00 開始
@@ -95,9 +105,11 @@ function refresh() {
     label.classList.toggle("in-range", hours === 2 && h === start + 1);
   });
 
-  const dayText = form.querySelector('input[name="date"]:checked').closest("label").dataset.text;
+  const dayText = scheduled
+    ? formatDay(nextOpenDate(place))
+    : form.querySelector('input[name="date"]:checked').closest("label").dataset.text;
   document.getElementById("summaryText").textContent =
-    `${SITES[data.get("place")].name} · ${dayText} · ${start}:00–${start + hours}:00`;
+    `${SITES[place].name} · ${dayText} · ${start}:00–${start + hours}:00`;
 }
 
 // 確認目前場館的登入狀態
@@ -130,18 +142,50 @@ form.addEventListener("change", (e) => {
   if (e.target.name === "place") updateLogin();
 });
 document.getElementById("loginRefresh").addEventListener("click", updateLogin);
+// 官網分頁載入完成（例如登入、登出後跳轉）時立即重新確認
+let tabCheckTimer = null;
+globalThis.chrome?.tabs?.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete" || !tab.url || form.classList.contains("loading")) return;
+  if (new URL(tab.url).host !== new URL(SITES[currentPlace()].base).host) return;
+  clearTimeout(tabCheckTimer);
+  tabCheckTimer = setTimeout(updateLogin, 300);
+});
 // 從官網登入完點回面板時自動重新確認（側邊欄切換分頁時不會隱藏，所以看的是焦點）
 window.addEventListener("focus", () => {
+  if (form.classList.contains("loading")) return;
+  refresh();
   if (!loginStatus.classList.contains("ok")) updateLogin();
 });
 refresh();
 updateLogin();
 
-function setLoading(on) {
+// 排程倒數
+let countdownTimer = null;
+function startCountdown(openAt, dayText) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const tick = () => {
+    const s = Math.max(0, Math.ceil((openAt - new Date()) / 1000));
+    statusText.innerHTML = s > 0
+      ? `距離開放 <b>${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}</b><br />將預約 ${dayText}・每 10 分鐘自動確認登入<br />請保持面板開著、電腦不要睡眠`
+      : "已開放，正在預約…";
+  };
+  tick();
+  countdownTimer = setInterval(tick, 1000);
+}
+
+let abortController = null;
+function setLoading(on, scheduled = false) {
   form.classList.toggle("loading", on);
   form.querySelectorAll("input, button").forEach((el) => (el.disabled = on));
+  waiting.hidden = !(on && scheduled);
+  document.getElementById("cancelButton").disabled = false;
+  clearInterval(countdownTimer);
   if (!on) refresh(); // 還原 21:00 的停用狀態
 }
+
+document.getElementById("cancelButton").addEventListener("click", () => {
+  abortController?.abort(new DOMException("已取消排程", "AbortError"));
+});
 
 function showError(message) {
   errorBox.textContent = message;
@@ -158,10 +202,20 @@ form.addEventListener("submit", async (e) => {
     localStorage.setItem("sport_reserve", JSON.stringify(toSave));
   } catch (e) {}
 
+  const scheduled = scheduleToggle.checked;
+  const qtime = Number(data.get("QTime"));
+  const hours = Number(data.get("hours"));
   showError("");
-  setLoading(true);
+  setLoading(true, scheduled);
   try {
-    const booked = await reserve(place, data.get("date"), Number(data.get("QTime")), Number(data.get("hours")));
+    let booked;
+    if (scheduled) {
+      abortController = new AbortController();
+      startCountdown(nextOpenAt(), formatDay(nextOpenDate(place)));
+      booked = await reserveAtOpen(place, qtime, hours, { signal: abortController.signal });
+    } else {
+      booked = await reserve(place, data.get("date"), qtime, hours);
+    }
     resultContent.innerHTML = "";
     booked.forEach((item) => {
       const li = document.createElement("li");
@@ -174,10 +228,13 @@ form.addEventListener("submit", async (e) => {
     form.hidden = true;
     formResult.hidden = false;
   } catch (error) {
-    console.error(error);
-    showError(error.message);
+    if (error.name !== "AbortError") {
+      console.error(error);
+      showError(error.message);
+    }
     if (error instanceof LoginError) updateLogin();
   } finally {
+    abortController = null;
     setLoading(false);
   }
 });

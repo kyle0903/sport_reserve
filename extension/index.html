@@ -53,6 +53,14 @@
               <span class="step">02</span>
               <span class="section-title">日期</span>
             </div>
+            <label class="switch-row">
+              <span>
+                <b>00:00 自動搶</b>
+                <small id="scheduleHint"></small>
+              </span>
+              <input type="checkbox" name="schedule" value="1" id="scheduleToggle" />
+              <span class="switch" aria-hidden="true"></span>
+            </label>
             <div class="days" id="dateChips"></div>
           </section>
 
@@ -81,6 +89,10 @@
             <span class="spinner" aria-hidden="true"></span>
           </button>
         </footer>
+        <div class="waiting" id="waiting" hidden>
+          <p id="statusText"></p>
+          <button type="button" class="btn-ghost" id="cancelButton">取消排程</button>
+        </div>
       </form>
 
       <section class="app result" id="formResult" hidden>
