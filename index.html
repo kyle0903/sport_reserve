@@ -1,141 +1,329 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>快速預約運動中心場地</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body style="background-color: rgb(230, 244, 249)">
-    <div class="container" id="container">
-      <form class="form" id="reservationForm">
-        <div class="title">歡迎<br /><span>快速預約運動中心場地</span></div>
-        <input
-          class="input"
-          name="session_id"
-          placeholder="session_id"
-          type="text"
-          required
-        />
-        <select class="input" name="place" required>
-          <option value="SC">三重</option>
-          <option value="BQ">板橋</option>
-        </select>
-        <select class="input" name="date" required></select>
-        <script>
-          // 取得 select 元素
-          const dateSelect = document.querySelector('select[name="date"]');
+  <body>
+    <main class="shell">
+      <form class="app" id="reservationForm">
+        <header class="hero">
+          <svg class="shuttle" viewBox="0 0 64 72" aria-hidden="true">
+            <path d="M18 6h28l-7 38H25z" fill="#fff" stroke="#4a4458" stroke-width="2.5" stroke-linejoin="round" />
+            <path d="M28 6l1 38M36 6l-1 38M20 18h24M22 30h20" stroke="#4a4458" stroke-width="2" stroke-linecap="round" opacity=".35" />
+            <rect x="23" y="40" width="18" height="6" rx="3" fill="#ffd86b" stroke="#4a4458" stroke-width="2.5" />
+            <circle cx="32" cy="56" r="11" fill="#ffc48a" stroke="#4a4458" stroke-width="2.5" />
+            <circle cx="28" cy="55" r="1.8" fill="#4a4458" />
+            <circle cx="36" cy="55" r="1.8" fill="#4a4458" />
+            <path d="M29.5 59.5q2.5 2 5 0" fill="none" stroke="#4a4458" stroke-width="1.8" stroke-linecap="round" />
+            <circle cx="25" cy="59" r="2" fill="#fff" opacity=".55" />
+            <circle cx="39" cy="59" r="2" fill="#fff" opacity=".55" />
+          </svg>
+          <p class="eyebrow">SPORT RESERVE</p>
+          <h1>羽球場快速預約</h1>
+          <p class="hero-sub">新北市三重・蘆洲國民運動中心</p>
+        </header>
 
-          // 生成未來7天日期選項(因為要搶第8天的場地，所以選項要到第8天)
-          for (let i = 8; i > 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() + i);
+        <div class="body">
+          <details class="section credential" id="credential">
+            <summary>
+              <span class="step">01</span>
+              <span class="section-title">登入憑證</span>
+              <span class="status-pill" id="credentialStatus">未設定</span>
+            </summary>
+            <div class="credential-body">
+              <textarea class="input" name="cookie" id="cookieInput" rows="3" placeholder="ASP.NET_SessionId=...; BP_AT=...; BP_CC=..." autocomplete="off" spellcheck="false" required></textarea>
+              <p class="hint">登入運動中心網站後按 F12 → Network → 點任一個 <code>fe01.aspx</code> → Request Headers 的 <code>cookie</code>，整串複製貼上。</p>
+            </div>
+          </details>
 
-            // 格式化日期為 YYYY-MM-DD
-            const formattedDate = date.toISOString().split("T")[0];
+          <section class="section">
+            <div class="section-head">
+              <span class="step">02</span>
+              <span class="section-title">場館</span>
+            </div>
+            <div class="segmented">
+              <label><input type="radio" name="place" value="SC" checked /><span>三重</span></label>
+              <label><input type="radio" name="place" value="LZ" /><span>蘆洲</span></label>
+            </div>
+          </section>
 
-            // 創建新的 option 元素
-            const option = document.createElement("option");
-            option.value = formattedDate;
-            option.textContent = formattedDate;
+          <section class="section">
+            <div class="section-head">
+              <span class="step">03</span>
+              <span class="section-title">日期</span>
+            </div>
+            <label class="switch-row">
+              <span>
+                <b>00:00 自動搶最後一天</b>
+                <small id="scheduleHint"></small>
+              </span>
+              <input type="checkbox" name="schedule" value="1" id="scheduleToggle" />
+              <span class="switch" aria-hidden="true"></span>
+            </label>
+            <div class="days" id="dateChips"></div>
+          </section>
 
-            // 將 option 加入 select 中
-            dateSelect.appendChild(option);
-          }
-        </script>
-        <select class="input" name="QTime" id="QTime">
-          <option value="6">6:00</option>
-          <option value="7">7:00</option>
-          <option value="8">8:00</option>
-          <option value="9">9:00</option>
-          <option value="10">10:00</option>
-          <option value="11">11:00</option>
-          <option value="12">12:00</option>
-          <option value="13">13:00</option>
-          <option value="14">14:00</option>
-          <option value="15">15:00</option>
-          <option value="16">16:00</option>
-          <option value="17">17:00</option>
-          <option value="18">18:00</option>
-          <option value="19">19:00</option>
-          <option value="20">20:00</option>
-          <option value="21">21:00</option>
-        </select>
-        <select class="input" name="hours" required>
-          <option value="1">1小時</option>
-          <option value="2">2小時</option>
-        </select>
-        <button type="submit" class="button-confirm" id="submitButton">
-          預約囉 →
-        </button>
+          <section class="section">
+            <div class="section-head">
+              <span class="step">04</span>
+              <span class="section-title">時段</span>
+              <div class="segmented segmented-sm">
+                <label><input type="radio" name="hours" value="1" /><span>1 小時</span></label>
+                <label><input type="radio" name="hours" value="2" checked /><span>2 小時</span></label>
+              </div>
+            </div>
+            <div id="timeChips"></div>
+          </section>
+
+          <p class="error" id="errorBox" role="alert" hidden></p>
+        </div>
+
+        <footer class="action-bar">
+          <div class="summary">
+            <small>預約內容</small>
+            <b id="summaryText"></b>
+          </div>
+          <button type="submit" class="btn-primary" id="submitButton">
+            <span class="btn-label">立即預約 🏸</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </footer>
+        <p class="waiting" id="statusText" hidden></p>
       </form>
-      <div class="loader" id="loading"></div>
-      <div class="form" id="formResult" style="width: 350px">
-        <div class="title">預約結果<br /><br /><span id="resultContent"></span></div>
-      </div>
-      </div>
-      <script>
-        loading.style.display = "none";
-        formResult.style.display = "none";
-        document
-          .getElementById("reservationForm")
-          .addEventListener("submit", async function (e) {
-            e.preventDefault(); // 防止表單的預設提交行為
 
-            const formData = new FormData(this);
-            try {
-              loading.style.display = "block";
-              reservationForm.style.display = "none";
-              const response = await fetch(
-                "http://localhost:8081/api/reserve_api",
-                {
-                  method: "POST",
-                  body: formData,
-                }
-              );
+      <section class="app result" id="formResult" hidden>
+        <div class="result-head">
+          <div class="check" aria-hidden="true">🎉</div>
+          <h2>預約成功！</h2>
+          <p>請在期限內完成付款，場地才會保留</p>
+        </div>
+        <ul class="tickets" id="resultContent"></ul>
+        <div class="result-actions">
+          <a class="btn-primary" id="payLink" target="_blank" rel="noopener"><span class="btn-label">前往訂單付款</span></a>
+          <button type="button" class="btn-ghost" id="againButton">再預約一次</button>
+        </div>
+      </section>
+    </main>
 
-              const result = await response.json();
-              // 處理回傳結果
-              // 判斷是字串還是陣列
-              if (typeof result.message === "string") {
-                alert(result.message);
-                loading.style.display = "none";
-                reservationForm.style.display = "flex";
-                return;
-              }
-              let resultString = "";
-              result.message.forEach((item) => {
-                resultString +=
-                  "日期:" +
-                  item.date +
-                  " 時段:" +
-                  (item.QTime) +
-                  ":00~" +
-                  (item.QTime + 1) +
-                  ":00 場地:" +
-                  item.court +
-                  "<br>";
-              });
+    <script>
+      // 直接用瀏覽器開檔案時打 localhost，由 Flask 提供頁面時打同網域
+      const API_BASE = location.protocol === "file:" ? "http://localhost:8081" : "";
+      const PAY_URL = {
+        SC: "https://fe.xuanen.com.tw/fe01.aspx?Module=member&files=orderx_mt",
+        LZ: "https://bcc.xuanen.com.tw/cc01.aspx?Module=member&files=orderx_mt",
+      };
+      const PLACE_NAME = { SC: "三重", LZ: "蘆洲" };
+      // 可預約到幾天後：三重今天～7 天後，蘆洲今天～6 天後
+      const ADVANCE_DAYS = { SC: 7, LZ: 6 };
+      const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+      const PERIODS = [
+        ["🌤", "早上", 6, 11],
+        ["☀️", "下午", 12, 17],
+        ["🌙", "晚上", 18, 21],
+      ];
 
-              loading.style.display = "none";
-              formResult.style.display = "flex";
-              resultContent.innerHTML = resultString;
-              
-              // 插入付款連結
-              const link = document.createElement("a");
-              link.href = "https://fe.xuanen.com.tw/fe01.aspx?Module=member&files=orderx_mt";
-              link.textContent = "前往訂單付費--→";
-              link.target = "_blank"; // 付款連結在新分頁開啟
-              resultContent.appendChild(link);
-            } catch (error) {
-              console.error("Error:", error);
-              alert(error.message);
-              loading.style.display = "none";
-              reservationForm.style.display = "flex";
-            }
+      const form = document.getElementById("reservationForm");
+      const cookieInput = document.getElementById("cookieInput");
+      const credential = document.getElementById("credential");
+      const credentialStatus = document.getElementById("credentialStatus");
+      const scheduleToggle = document.getElementById("scheduleToggle");
+      const statusText = document.getElementById("statusText");
+      const errorBox = document.getElementById("errorBox");
+      const formResult = document.getElementById("formResult");
+      const resultContent = document.getElementById("resultContent");
+      const payLink = document.getElementById("payLink");
+
+      function radio(name, value, html, checked, className) {
+        const label = document.createElement("label");
+        if (className) label.className = className;
+        label.innerHTML = `<input type="radio" name="${name}" value="${value}" ${checked ? "checked" : ""} /><span>${html}</span>`;
+        return label;
+      }
+
+      function formatDay(d) {
+        return `${d.getMonth() + 1}/${d.getDate()} 週${WEEKDAYS[d.getDay()]}`;
+      }
+
+      // 依場館產生可預約日期，預設選最後一天
+      // 用本地時間格式化，避免 toISOString() 在台灣早上 8 點前少一天；格式與網站相同 YYYY/MM/DD
+      const dateChips = document.getElementById("dateChips");
+      let renderedDays = null;
+      function renderDates(days) {
+        if (days === renderedDays) return;
+        renderedDays = days;
+        dateChips.innerHTML = "";
+        dateChips.style.setProperty("--n", days + 1);
+        for (let i = 0; i <= days; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() + i);
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          const weekend = d.getDay() === 0 || d.getDay() === 6;
+          const label = radio(
+            "date",
+            `${d.getFullYear()}/${mm}/${dd}`,
+            `<small>${i === 0 ? "今天" : "週" + WEEKDAYS[d.getDay()]}</small><b>${d.getDate()}</b><small>${d.getMonth() + 1}月</small>`,
+            i === days,
+            weekend ? "day weekend" : "day"
+          );
+          label.dataset.text = formatDay(d);
+          dateChips.appendChild(label);
+        }
+      }
+
+      const timeChips = document.getElementById("timeChips");
+      PERIODS.forEach(([icon, name, from, to]) => {
+        const group = document.createElement("div");
+        group.className = "period";
+        group.innerHTML = `<span class="period-name"><i>${icon}</i>${name}</span><div class="times"></div>`;
+        for (let h = from; h <= to; h++) {
+          group.querySelector(".times").appendChild(radio("QTime", h, `${h}:00`, h === 19, "time"));
+        }
+        timeChips.appendChild(group);
+      });
+
+      // 記住 Cookie 與上次的選擇，下次打開不用重填
+      const SAVED_FIELDS = ["cookie", "place", "QTime", "hours"];
+      try {
+        const saved = JSON.parse(localStorage.getItem("sport_reserve") || "{}");
+        if (saved.cookie) cookieInput.value = saved.cookie;
+        SAVED_FIELDS.slice(1).forEach((name) => {
+          const el = form.querySelector(`input[name="${name}"][value="${saved[name]}"]`);
+          if (el) el.checked = true;
+        });
+      } catch (e) {}
+
+      // 下一個 00:00 開放的日期
+      function nextOpenDay(days) {
+        const d = new Date();
+        d.setDate(d.getDate() + days + 1);
+        return d;
+      }
+
+      // 依目前選擇更新：憑證狀態、2 小時的第二格標示、摘要列
+      function refresh() {
+        const data = new FormData(form);
+        const hasCookie = cookieInput.value.trim() !== "";
+        credentialStatus.textContent = hasCookie ? "已儲存" : "未設定";
+        credentialStatus.classList.toggle("ok", hasCookie);
+
+        const days = ADVANCE_DAYS[data.get("place")];
+        renderDates(days);
+        const scheduled = scheduleToggle.checked;
+        dateChips.hidden = scheduled;
+        document.getElementById("scheduleHint").textContent = scheduled
+          ? `請於 00:00 前送出，將預約 ${formatDay(nextOpenDay(days))}`
+          : "開放瞬間自動送出";
+
+        const hours = Number(data.get("hours"));
+        // 2 小時不能從 21:00 開始
+        const last = form.querySelector('input[name="QTime"][value="21"]');
+        last.disabled = hours === 2;
+        if (last.disabled && last.checked) form.querySelector('input[name="QTime"][value="20"]').checked = true;
+
+        const start = Number(new FormData(form).get("QTime"));
+        form.querySelectorAll(".time").forEach((label) => {
+          const h = Number(label.querySelector("input").value);
+          label.classList.toggle("in-range", hours === 2 && h === start + 1);
+        });
+
+        const dayText = scheduled
+          ? formatDay(nextOpenDay(days))
+          : form.querySelector('input[name="date"]:checked').closest("label").dataset.text;
+        document.getElementById("summaryText").textContent =
+          `${PLACE_NAME[data.get("place")]} · ${dayText} · ${start}:00–${start + hours}:00`;
+      }
+      form.addEventListener("change", refresh);
+      cookieInput.addEventListener("input", refresh);
+      // 收合時必填驗證會找不到欄位，先展開
+      cookieInput.addEventListener("invalid", () => (credential.open = true));
+      refresh();
+      if (!cookieInput.value) credential.open = true;
+
+      let countdownTimer = null;
+      function startCountdown() {
+        const target = new Date();
+        target.setHours(24, 0, 0, 0);
+        const tick = () => {
+          const s = Math.max(0, Math.round((target - new Date()) / 1000));
+          const pad = (n) => String(n).padStart(2, "0");
+          const left = `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+          statusText.innerHTML = s > 0
+            ? `距離開放 <b>${left}</b>　請勿關閉頁面與電腦`
+            : "已開放，正在預約…";
+        };
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+      }
+
+      function setLoading(on) {
+        form.classList.toggle("loading", on);
+        form.querySelectorAll("input, textarea, button").forEach((el) => (el.disabled = on));
+        if (!on) refresh(); // 還原 21:00 的停用狀態
+        statusText.hidden = !(on && scheduleToggle.checked);
+        clearInterval(countdownTimer);
+        if (on && scheduleToggle.checked) startCountdown();
+      }
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = !message;
+      }
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        try {
+          const toSave = {};
+          SAVED_FIELDS.forEach((name) => (toSave[name] = formData.get(name)));
+          localStorage.setItem("sport_reserve", JSON.stringify(toSave));
+        } catch (e) {}
+
+        showError("");
+        credential.open = false;
+        setLoading(true);
+        try {
+          const response = await fetch(`${API_BASE}/api/reserve_api`, {
+            method: "POST",
+            body: formData,
           });
-      </script>
+          const result = await response.json();
 
-    </div>
+          if (typeof result.message === "string") {
+            showError(result.message);
+            if (result.message.includes("登入")) credential.open = true;
+            return;
+          }
+
+          resultContent.innerHTML = "";
+          result.message.forEach((item) => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+              <div class="ticket-time">${item.QTime}:00<small>– ${item.QTime + 1}:00</small></div>
+              <div class="ticket-info"><b>${item.court}</b><small>${PLACE_NAME[formData.get("place")]}・${item.date}</small></div>`;
+            resultContent.appendChild(li);
+          });
+          payLink.href = PAY_URL[formData.get("place")];
+          form.hidden = true;
+          formResult.hidden = false;
+        } catch (error) {
+          console.error("Error:", error);
+          showError(`無法連線到後端：${error.message}`);
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      document.getElementById("againButton").addEventListener("click", () => {
+        formResult.hidden = true;
+        form.hidden = false;
+      });
+    </script>
   </body>
 </html>
