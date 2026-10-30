@@ -13,8 +13,6 @@ export const SPORTS = {
 // 可預約到幾天後：三重今天～7 天後，蘆洲、板橋今天～6 天後
 export const ADVANCE_DAYS = { SC: 7, LZ: 6, BQ: 6 };
 
-// 列表頁中可預約的格子：預約「羽5-3 18:00~19:00」？')){Step3Action(1074,18)}
-const SLOT_RE = /預約「(\S+) [^」]*」？'\)\)\{Step3Action\((\d+),(\d+)\)/g;
 
 export class LoginError extends Error {
   constructor() {
@@ -108,23 +106,54 @@ export async function getCalendar(place, sport, fetchImpl = fetch, now = Date.no
   return { name, days, timing };
 }
 
-/** 查詢列表頁（早上、下午、晚上同時查），回傳 Map(QTime => [{ qpid, court }])；該日尚未開放時回傳 null */
-export async function getAvailable(place, sport, date, qtimes, fetchImpl = fetch) {
+// 列表頁依序出現：時段標題「18:00~19:00」、各場地的「可預約」按鈕或「已被預約」圖示
+const ROW_RE = /(\d{2}):00~\d{2}:00<\/td>|預約「(\S+) [^」]*」？'\)\)\{Step3Action\((\d+),(\d+)\)|title="已被預約"/g;
+
+/** 解析列表頁：free 為可預約的場地，totals 為 Map(整點 => 場地總數) */
+function parseList(text) {
+  const free = [];
+  const totals = new Map();
+  let hour = null;
+  for (const [, header, court, qpid, t] of text.matchAll(ROW_RE)) {
+    if (header) {
+      hour = +header;
+      continue;
+    }
+    const h = court ? +t : hour;
+    if (court) free.push({ qpid: +qpid, court, qtime: +t });
+    if (h !== null) totals.set(h, (totals.get(h) || 0) + 1);
+  }
+  return { free, totals, opened: free.length > 0 || text.includes('title="已被預約"') };
+}
+
+async function fetchDay(place, sport, date, qtimes, fetchImpl) {
   // D2：1=早上(06~12) 2=下午(12~18) 3=晚上(18~22)
   const periods = [...new Set(qtimes.map((t) => (t < 12 ? 1 : t < 18 ? 2 : 3)))].sort();
   const pages = await Promise.all(periods.map((d2) => get(listUrl(place, sport, date, d2), fetchImpl)));
   const slots = new Map();
+  const totals = new Map();
   let opened = false;
   for (const { text } of pages) {
     if (!text.includes("ContentPlaceHolder1_Step2_data")) throw new LoginError();
-    const found = [...text.matchAll(SLOT_RE)];
-    if (found.length || text.includes('title="已被預約"')) opened = true;
-    for (const [, court, qpid, t] of found) {
-      if (!slots.has(+t)) slots.set(+t, []);
-      slots.get(+t).push({ qpid: +qpid, court });
+    const page = parseList(text);
+    opened ||= page.opened;
+    for (const { qpid, court, qtime } of page.free) {
+      if (!slots.has(qtime)) slots.set(qtime, []);
+      slots.get(qtime).push({ qpid, court });
     }
+    for (const [h, n] of page.totals) totals.set(h, n);
   }
-  return opened ? slots : null;
+  return opened ? { slots, totals } : null;
+}
+
+/** 查詢列表頁（早上、下午、晚上同時查），回傳 Map(QTime => [{ qpid, court }])；該日尚未開放時回傳 null */
+export async function getAvailable(place, sport, date, qtimes, fetchImpl = fetch) {
+  return (await fetchDay(place, sport, date, qtimes, fetchImpl))?.slots ?? null;
+}
+
+/** 查詢一整天：{ slots: Map(整點 => [{ qpid, court }]), totals: Map(整點 => 場地總數) }；尚未開放回傳 null */
+export function getDay(place, sport, date, fetchImpl = fetch) {
+  return fetchDay(place, sport, date, [6, 12, 18], fetchImpl);
 }
 
 /**
