@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>羽球場快速預約</title>
+    <title>運動中心快速預約</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -25,20 +25,33 @@
             <circle cx="25" cy="59" r="2" fill="#fff" opacity=".55" />
             <circle cx="39" cy="59" r="2" fill="#fff" opacity=".55" />
           </svg>
+          <span class="zzz" aria-hidden="true"><i>z</i><i>z</i><i>Z</i></span>
           <p class="eyebrow">SPORT RESERVE</p>
-          <h1>羽球場快速預約</h1>
-          <p class="hero-sub">新北市三重・蘆洲國民運動中心</p>
+          <h1>運動中心快速預約</h1>
+          <p class="hero-sub">新北市三重・蘆洲・板橋國民運動中心</p>
         </header>
 
         <div class="body">
           <section class="section">
             <div class="section-head">
               <span class="step">01</span>
+              <span class="section-title">運動</span>
+            </div>
+            <div class="segmented">
+              <label><input type="radio" name="sport" value="badminton" checked /><span>🏸 羽球</span></label>
+              <label><input type="radio" name="sport" value="pickleball" /><span>🏓 匹克球</span></label>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head">
+              <span class="step">02</span>
               <span class="section-title">場館</span>
             </div>
             <div class="segmented">
               <label><input type="radio" name="place" value="SC" checked /><span>三重</span></label>
               <label><input type="radio" name="place" value="LZ" /><span>蘆洲</span></label>
+              <label><input type="radio" name="place" value="BQ" /><span>板橋</span></label>
             </div>
             <div class="login-row" id="loginRow">
               <span class="status-pill" id="loginStatus">確認登入中…</span>
@@ -50,7 +63,7 @@
 
           <section class="section">
             <div class="section-head">
-              <span class="step">02</span>
+              <span class="step">03</span>
               <span class="section-title">日期</span>
             </div>
             <label class="switch-row">
@@ -66,7 +79,7 @@
 
           <section class="section">
             <div class="section-head">
-              <span class="step">03</span>
+              <span class="step">04</span>
               <span class="section-title">時段</span>
               <div class="segmented segmented-sm">
                 <label><input type="radio" name="hours" value="1" /><span>1 小時</span></label>
@@ -74,6 +87,7 @@
               </div>
             </div>
             <div id="timeChips"></div>
+            <p class="avail-note" id="availNote"></p>
           </section>
 
           <p class="error" id="errorBox" role="alert" hidden></p>
@@ -90,7 +104,28 @@
           </button>
         </footer>
         <div class="waiting" id="waiting" hidden>
-          <p id="statusText"></p>
+          <ol class="steps">
+            <li class="step-item done" id="stepScheduled">
+              <b>已排程</b>
+              <small id="waitSummary"></small>
+            </li>
+            <li class="step-item active" id="stepWaiting">
+              <b>等待開放中</b>
+              <div class="countdown">
+                <span id="countdownText">--:--:--</span>
+                <span class="clock-chip" id="clockChip" hidden></span>
+              </div>
+              <small id="checkText">確認登入中…</small>
+            </li>
+            <li class="step-item" id="stepSending">
+              <b>00:00 送出預約</b>
+              <small>開放瞬間自動送出</small>
+            </li>
+            <li class="step-item" id="stepDone">
+              <b>完成</b>
+            </li>
+          </ol>
+          <p class="waiting-hint">請保持面板開著、電腦不要睡眠</p>
           <button type="button" class="btn-ghost" id="cancelButton">取消排程</button>
         </div>
       </form>

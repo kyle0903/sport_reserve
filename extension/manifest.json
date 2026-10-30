@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "羽球場快速預約",
+  "name": "運動中心快速預約",
   "version": "1.0.0",
-  "description": "快速預約新北市三重、蘆洲國民運動中心羽球場",
+  "description": "快速預約新北市三重、蘆洲、板橋國民運動中心的羽球、匹克球場地",
   "action": {
-    "default_title": "羽球場快速預約",
+    "default_title": "運動中心快速預約",
     "default_icon": {
       "16": "icons/16.png",
       "32": "icons/32.png",
@@ -29,6 +29,7 @@
   },
   "host_permissions": [
     "https://fe.xuanen.com.tw/*",
-    "https://bcc.xuanen.com.tw/*"
+    "https://bcc.xuanen.com.tw/*",
+    "https://bbq.xuanen.com.tw/*"
   ]
 }
