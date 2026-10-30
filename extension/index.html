@@ -65,14 +65,52 @@
             </div>
             <div id="timeChips"></div>
             <p class="avail-note" id="availNote"></p>
+            <div class="busy-panel" id="busyPanel" hidden>
+              <div class="rally" aria-hidden="true">
+                <div class="rally-x">
+                  <div class="rally-y">
+                    <svg class="rally-shuttle" viewBox="0 0 32 32">
+                      <path d="M9 4h14l-3.5 15h-7z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" />
+                      <path d="M14 4l.6 15M18 4l-.6 15M10 10h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".6" />
+                      <circle cx="16" cy="24.5" r="4.6" fill="currentColor" />
+                    </svg>
+                  </div>
+                </div>
+                <div class="rally-x rally-x-shadow"><div class="rally-shadow"></div></div>
+                <div class="rally-net"></div>
+              </div>
+              <b class="busy-title"><span id="busyTitle"></span><span class="busy-dots"><i>.</i><i>.</i><i>.</i></span></b>
+              <small class="busy-sub" id="busySub"></small>
+            </div>
           </section>
 
           <p class="error" id="errorBox" role="alert" hidden></p>
+
+          <div class="extras">
+          <section class="orders" id="ordersCard">
+            <div class="orders-head">
+              <small id="ordersTitle">我的預約</small>
+              <a id="ordersAll" target="_blank" rel="noopener">全部訂單 →</a>
+            </div>
+            <ul class="orders-list" id="ordersList"></ul>
+            <p class="orders-empty" id="ordersEmpty"></p>
+          </section>
+
+          <section class="next-open" id="nextOpen">
+            <div class="next-open-info">
+              <small id="nextOpenLabel">下次開放</small>
+              <div class="next-open-row">
+                <b id="nextOpenDay"></b>
+                <span class="next-open-count" id="nextOpenCount"></span>
+              </div>
+            </div>
+            <button type="button" class="btn-chip" id="nextOpenButton">自動搶</button>
+          </section>
+          </div>
         </div>
 
         <footer class="action-bar">
           <input type="checkbox" name="schedule" value="1" id="scheduleToggle" hidden />
-          <button type="button" class="btn-outline" id="scheduleButton">00:00 自動搶</button>
           <button type="submit" class="btn-primary" id="submitButton">
             <span class="btn-label" id="submitLabel">立即預約 →</span>
             <span class="spinner" aria-hidden="true"></span>

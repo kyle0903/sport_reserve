@@ -157,6 +157,32 @@ export function getDay(place, sport, date, fetchImpl = fetch) {
 }
 
 /**
+ * 查詢「我的訂單」（官網預設列出近三個月訂購的訂單），回傳
+ * [{ no, product, price, date: "YYYY/MM/DD", hour, status, detailUrl }]
+ */
+export async function getOrders(place, fetchImpl = fetch) {
+  const { text } = await get(`${SITES[place].base}?module=member&files=orderx_mt`, fetchImpl);
+  if (!text.includes('id="lab_Name"')) throw new LoginError();
+  const origin = new URL(SITES[place].base).origin;
+  const plain = (html) => html.replace(/<[^>]+>/g, "").trim();
+  // 每筆訂單從「lab_OrderDate_N」開始
+  return text.split(/id="ContentPlaceHolder1_Repeater1_lab_OrderDate_\d+"/).slice(1).map((row) => {
+    const field = (name) => row.match(new RegExp(`lab_${name}_\\d+">([\\s\\S]*?)</span>`))?.[1] ?? "";
+    const cells = [...row.matchAll(/<span class="tWord">([^<]*)<\/span>/g)].map((m) => m[1].trim()).filter(Boolean);
+    const detail = row.match(/window\.location\.href='\.\.\/([^']+)'/)?.[1];
+    return {
+      no: cells.find((c) => /^\d{6,}$/.test(c)) ?? "",
+      product: cells.find((c) => !/^\d+$/.test(c)) ?? "",
+      price: Number(field("Price")) || 0,
+      date: field("Date").trim().replaceAll("-", "/"),
+      hour: Number(field("Time")),
+      status: plain(field("Status")),
+      detailUrl: detail ? `${origin}/${detail}` : null,
+    };
+  });
+}
+
+/**
  * 送出一個時段的預約，依官網轉址的 X 判斷結果：
  * { ok: true } 成功(X=1)｜{ code: "taken" } 已被訂走(X=2)｜
  * { code: "not_open" } 還不能訂(X=0，例如尚未開放，官網會顯示「系統異常，錯誤代碼:Cod01」)｜{ code: "error", message }

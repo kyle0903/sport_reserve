@@ -1,5 +1,5 @@
 import {
-  SITES, SPORTS, ADVANCE_DAYS, LoginError, loginUrl, payUrl, getDay, getCalendar, reserve, reserveAtOpen, DEFAULT_COURTS,
+  SITES, SPORTS, ADVANCE_DAYS, LoginError, loginUrl, payUrl, getDay, getCalendar, getOrders, reserve, reserveAtOpen, DEFAULT_COURTS,
   formatDate, nextOpenAt, nextOpenDate,
 } from "./reserve.js";
 
@@ -21,7 +21,6 @@ const resultContent = document.getElementById("resultContent");
 const avatar = document.getElementById("avatar");
 const avatarText = document.getElementById("avatarText");
 const scheduleToggle = document.getElementById("scheduleToggle");
-const scheduleButton = document.getElementById("scheduleButton");
 const scheduleTarget = document.getElementById("scheduleTarget");
 const submitLabel = document.getElementById("submitLabel");
 const waiting = document.getElementById("waiting");
@@ -125,6 +124,7 @@ let availRequest = 0;
 let calendarKey = null;
 let calendar = null;
 let calendarRequest = 0;
+let calendarLoading = false;
 // 查時段後發現全部都滿的「場館|運動|日期」（官網月曆有時仍顯示可預約，例如當天時段都已被訂走）
 const slotFullDates = new Set();
 const currentAvailKey = () => `${checkedValue("place")}|${checkedValue("sport")}|${checkedValue("date")}`;
@@ -163,9 +163,8 @@ function refresh() {
   const scheduled = scheduleToggle.checked;
   dateChips.hidden = scheduled;
   scheduleTarget.hidden = !scheduled;
-  scheduleTarget.innerHTML = `<b>${CLOCK_ICON}00:00 自動搶 ${formatDay(nextOpenDate(place))}</b><br />選好時段後按下方按鈕，開放瞬間自動送出`;
-  scheduleButton.classList.toggle("on", scheduled);
-  scheduleButton.textContent = scheduled ? "← 立即預約" : "00:00 自動搶";
+  scheduleTarget.innerHTML = `<div><b>${CLOCK_ICON}00:00 自動搶 ${formatDay(nextOpenDate(place))}</b><br />選好時段後按下方按鈕，開放瞬間自動送出</div>
+    <button type="button" class="btn-chip schedule-exit">取消</button>`;
   submitLabel.textContent = scheduled ? "設定 00:00 自動搶 →" : "立即預約 →";
 
   // 日期：額滿、休館停用（依官網月曆與查過的時段）
@@ -219,14 +218,31 @@ function refresh() {
 
   const checking = timeChips.classList.contains("checking");
   const allFull = counts && timeInputs.every((input) => input.disabled);
-  // 查詢空位中：時段暫時不能點（不算已滿，也不改選），也先不能預約
-  if (checking) timeInputs.forEach((input) => (input.disabled = true));
-  submitButton.disabled = form.classList.contains("loading") || !checkedValue("QTime") || (!scheduled && !checkedValue("date")) || (!scheduled && checking);
+  // 查詢中（確認登入、讀月曆、查空位）：整個畫面暫時不能操作，外觀不變
+  const busy = !form.classList.contains("loading") && (checking || loginState === "checking" || calendarLoading);
+  form.classList.toggle("busy", busy);
+  // 查詢中：在時段下方的空白處顯示動畫與目前在做什麼，讓使用者知道為什麼不能點
+  const busyPanel = document.getElementById("busyPanel");
+  busyPanel.hidden = !busy;
+  if (busy) {
+    const day = form.querySelector('input[name="date"]:checked')?.closest("label").dataset.text.split(" ")[0];
+    const [title, sub] = loginState === "checking"
+      ? ["確認登入中", `正在向${SITES[place].name}運動中心確認你的登入狀態`]
+      : calendarLoading
+        ? ["讀取月曆中", `正在讀取${SITES[place].name}${SPORTS[sport].name}可以預約的日期`]
+        : [`查詢 ${day} 空位中`, "正在查詢每個時段還剩幾面場地"];
+    document.getElementById("busyTitle").textContent = title;
+    document.getElementById("busySub").textContent = sub;
+  }
+  for (const el of [form.querySelector(".body"), form.querySelector(".action-bar"), avatar]) el.inert = busy;
+  submitButton.disabled = form.classList.contains("loading") || busy || !checkedValue("QTime") || (!scheduled && !checkedValue("date"));
   availNote.textContent = scheduled
     ? "自動搶的那天還沒開放，無法事先查空位"
     : !checkedValue("date")
       ? "這段期間都已經滿了"
-      : loginState !== "ok"
+      : loginState === "checking"
+        ? "正在確認登入狀態…"
+        : loginState !== "ok"
         ? "登入後會顯示每個時段的空位"
         : checking
           ? "查詢空位中…"
@@ -235,6 +251,7 @@ function refresh() {
             : counts
               ? "一格代表一面場地，亮綠為可預約，橘色表示快沒了"
               : "";
+  if (busy) availNote.textContent = ""; // 查詢中改由覆蓋層說明
 
   // 大卡片：預約內容與可搶的場地數
   document.getElementById("heroMeta").textContent = summaryText().split("・").slice(0, 3).join("・");
@@ -243,6 +260,7 @@ function refresh() {
   let count = "–";
   let countLabel = "登入後顯示空位";
   if (scheduled) [count, countLabel] = ["?", "開放後才知道"];
+  else if (loginState === "checking") [count, countLabel] = ["…", "確認登入中"];
   else if (loginState === "ok" && checking) [count, countLabel] = ["…", "查詢中"];
   else if (loginState === "ok" && !checkedValue("QTime")) [count, countLabel] = ["0", "這天已全滿"];
   else if (counts) {
@@ -258,6 +276,7 @@ function refresh() {
   }
   document.getElementById("heroCount").textContent = count;
   document.getElementById("heroCountLabel").textContent = countLabel;
+  updateNextOpen();
 }
 
 // 查詢目前選的日期每個時段還剩幾面場地（已登入、非排程時）
@@ -354,9 +373,11 @@ async function updateLogin(force = false) {
     setLoginState("ok", { name: cached.name });
     refresh();
     updateAvailability();
+    updateOrders();
     return;
   }
   setLoginState("checking");
+  refresh();
   try {
     const { name, days } = await getCalendar(place, sport);
     if (id !== loginCheckId) return;
@@ -366,6 +387,7 @@ async function updateLogin(force = false) {
     setLoginState("ok", { name });
     refresh();
     updateAvailability();
+    updateOrders();
   } catch (e) {
     if (id !== loginCheckId) return;
     setLoginState("bad", { message: e instanceof LoginError ? "" : `無法連線：${e.message}` });
@@ -375,7 +397,100 @@ async function updateLogin(force = false) {
     calendarKey = null;
     calendar = null;
     refresh();
+    renderOrders();
   }
+}
+
+// ---------- 我的預約 ----------
+let orders = null; // 目前場館的訂單
+let ordersKey = null; // 已讀取的場館
+let ordersState = ""; // loading / error / ""
+let ordersRequest = 0;
+
+const parseDate = (s) => {
+  const [y, m, d] = s.split("/").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+// 沒有取消的預約，同一天同場地連續的時段合併成一筆（官網每小時一筆訂單）；
+// 分成「還沒打完的」與「已經結束的」
+function splitOrders() {
+  const today = formatDate(new Date());
+  const nowHour = new Date().getHours();
+  const merged = [];
+  const list = (orders || [])
+    .filter((o) => !o.status.includes("取消") && o.date)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.hour - b.hour);
+  for (const o of list) {
+    const last = merged.at(-1);
+    if (last && last.date === o.date && last.product === o.product && last.status === o.status && last.end === o.hour) last.end++;
+    else merged.push({ ...o, end: o.hour + 1 });
+  }
+  const isUpcoming = (o) => o.date > today || (o.date === today && o.end > nowHour);
+  return { upcoming: merged.filter(isUpcoming), past: merged.filter((o) => !isUpcoming(o)) };
+}
+
+function orderItem(o, place, past = false) {
+  const unpaid = !past && /未|待/.test(o.status);
+  const badge = past ? "已結束" : `${o.status}${unpaid ? "・去付款" : ""}`;
+  return `<li${past ? ' class="past"' : ""}><a href="${o.detailUrl || payUrl(place)}" target="_blank" rel="noopener">
+    <b>${formatDay(parseDate(o.date))}</b>
+    <span class="orders-time">${o.hour}:00–${o.end}:00</span>
+    <span class="orders-court">${o.product}</span>
+    <em class="${past ? "done" : unpaid ? "warn" : "ok"}">${badge}</em>
+  </a></li>`;
+}
+
+// 卡片一開始就顯示（避免讀完才突然出現），依狀態換內容
+function renderOrders() {
+  const place = currentPlace();
+  document.getElementById("ordersTitle").textContent = `我的預約・${SITES[place].name}`;
+  document.getElementById("ordersAll").href = payUrl(place);
+  const listEl = document.getElementById("ordersList");
+  const note = document.getElementById("ordersEmpty");
+  if (loginState !== "ok" || ordersKey !== place) {
+    listEl.innerHTML = "";
+    note.textContent = loginState === "bad"
+      ? "登入後顯示你的預約"
+      : ordersState === "error"
+        ? "無法讀取訂單"
+        : "讀取中…";
+    return;
+  }
+  const { upcoming, past } = splitOrders();
+  if (upcoming.length) {
+    listEl.innerHTML = upcoming.slice(0, 3).map((o) => orderItem(o, place)).join("");
+    note.textContent = upcoming.length > 3 ? `還有 ${upcoming.length - 3} 筆，點「全部訂單」查看` : "";
+  } else {
+    // 沒有接下來的預約：顯示最近一次已結束的，避免以為沒讀到
+    listEl.innerHTML = past.length ? orderItem(past.at(-1), place, true) : "";
+    note.textContent = past.length ? "近期沒有預約，上面是最近一次" : "近期沒有預約";
+  }
+}
+
+async function updateOrders(force = false) {
+  const place = currentPlace();
+  if (loginState !== "ok") return renderOrders();
+  if (!force && ordersKey === place) return renderOrders();
+  const cached = !force && cache.get(`orders:${place}`);
+  if (cached) {
+    [orders, ordersKey, ordersState] = [cached.list, place, ""];
+    return renderOrders();
+  }
+  const id = ++ordersRequest;
+  ordersState = "loading";
+  renderOrders();
+  try {
+    const list = await getOrders(place);
+    if (id !== ordersRequest) return;
+    [orders, ordersKey, ordersState] = [list, place, ""];
+    cache.set(`orders:${place}`, { list });
+  } catch (e) {
+    if (id !== ordersRequest) return;
+    ordersState = "error";
+    if (e instanceof LoginError) updateLogin(true);
+  }
+  renderOrders();
 }
 
 // 查詢目前場館、運動的月曆（每天是否額滿、休館）
@@ -394,6 +509,8 @@ async function updateCalendar(force = false) {
     updateAvailability();
     return;
   }
+  calendarLoading = true;
+  refresh();
   try {
     const { name, days } = await getCalendar(place, sport);
     if (id !== calendarRequest) return;
@@ -403,6 +520,8 @@ async function updateCalendar(force = false) {
     if (id !== calendarRequest) return;
     calendarKey = null;
     if (e instanceof LoginError) updateLogin(true);
+  } finally {
+    if (id === calendarRequest) calendarLoading = false;
   }
   refresh();
   updateAvailability(); // 選的日期可能因額滿被改選
@@ -428,16 +547,44 @@ avatar.addEventListener("click", () => {
   availKey = null;
   calendarKey = null;
   slotFullDates.clear();
+  ordersKey = null;
   cache.clear();
   updateLogin(true);
 });
 
 // 00:00 自動搶：切換模式
-scheduleButton.addEventListener("click", () => {
-  scheduleToggle.checked = !scheduleToggle.checked;
+function setScheduleMode(on) {
+  scheduleToggle.checked = on;
   refresh();
   updateAvailability();
+}
+scheduleTarget.addEventListener("click", (e) => {
+  if (e.target.closest(".schedule-exit")) setScheduleMode(false);
 });
+
+// 下次開放倒數：今晚 00:00 會開放哪一天、還有多久（不用打官網）
+const nextOpenCard = document.getElementById("nextOpen");
+function updateNextOpen() {
+  const place = checkedValue("place");
+  const sport = checkedValue("sport");
+  nextOpenCard.hidden = scheduleToggle.checked;
+  document.getElementById("nextOpenLabel").textContent = `下次開放・${SITES[place].name}${SPORTS[sport].name}`;
+  document.getElementById("nextOpenDay").textContent = formatDay(nextOpenDate(place));
+  const s = Math.max(0, Math.ceil((nextOpenAt() - new Date()) / 1000));
+  const pad2 = (n) => String(n).padStart(2, "0");
+  document.getElementById("nextOpenCount").textContent = `${pad2(Math.floor(s / 3600))}:${pad2(Math.floor((s % 3600) / 60))}:${pad2(s % 60)} 後`;
+}
+document.getElementById("nextOpenButton").addEventListener("click", () => setScheduleMode(true));
+let openedDay = formatDate(new Date());
+setInterval(() => {
+  // 面板開著跨過午夜：日期列與倒數換成新的一天
+  if (formatDate(new Date()) !== openedDay && !form.classList.contains("loading")) {
+    openedDay = formatDate(new Date());
+    refresh();
+    updateAvailability();
+  }
+  updateNextOpen();
+}, 1000);
 
 // 官網分頁載入完成（例如登入、登出後跳轉）時立即重新確認
 let tabCheckTimer = null;
@@ -455,6 +602,7 @@ window.addEventListener("focus", () => {
   if (loginState !== "ok") updateLogin(true);
 });
 refresh();
+renderOrders();
 updateLogin();
 
 // ---------- 排程等待畫面 ----------
@@ -596,6 +744,7 @@ form.addEventListener("submit", async (e) => {
     // 預約完狀態會改變，重新查月曆與空位
     updateCalendar(true);
     updateAvailability(true);
+    updateOrders(true);
   }
 });
 
